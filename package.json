@@ -1,0 +1,13 @@
+{
+	"name": "employeelist",
+	"version": "0.0.1",
+	"description": "",
+	"scripts": {
+		"vite": "vite"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Mardens-Inc/EmployeeList.git"
+	},
+	"private": true
+}

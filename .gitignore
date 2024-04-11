@@ -1,0 +1,6 @@
+composer.phar
+/vendor/
+composer.lock
+logs/
+/node_modules
+/.vite
