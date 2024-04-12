@@ -4,7 +4,7 @@ namespace EmployeeList;
 
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 
-class Employee
+class ReturnItem
 {
     public int $id;
     public string $employee_id;
@@ -22,7 +22,7 @@ class Employee
     }
 }
 
-class Employees
+class Returns
 {
 
     private \mysqli $connection;
@@ -33,41 +33,41 @@ class Employees
         $this->connection = \Connection::connect();
     }
 
-    public function add(Employee $employee): bool
+    public function add(ReturnItem $employee): bool
     {
         $employee_id = $employee->employee_id;
         $first_name = $employee->first_name;
         $last_name = $employee->last_name;
         $location = $employee->location;
-        $stmt = $this->connection->prepare("INSERT INTO `employees` (employee_id, first_name, last_name, location) VALUES (?, ?, ?, ?)");
+        $stmt = $this->connection->prepare("INSERT INTO `returns` (id, first_name, last_name, type) VALUES (?, ?, ?, ?)");
         $stmt->bind_param("isss", $employee_id, $first_name, $last_name, $location);
         return $stmt->execute();
     }
 
     public function get(): array
     {
-        $result = $this->connection->query("SELECT * FROM `employees`");
-        $employees = [];
+        $result = $this->connection->query("SELECT * FROM `returns`");
+        $returns = [];
         while ($row = $result->fetch_assoc()) {
-            $employee = new Employee($row["id"], $row["employee_id"], $row["first_name"], $row["last_name"], $row["location"]);
-            $employees[] = $employee;
+            $employee = new ReturnItem($row["id"], $row["employee_id"], $row["first_name"], $row["last_name"], $row["location"]);
+            $returns[] = $employee;
         }
-        return $employees;
+        return $returns;
     }
 
     public function search(string $query): array
     {
-        $stmt = $this->connection->prepare("SELECT * FROM `employees` WHERE first_name LIKE ? OR last_name LIKE ? OR employee_id = ? OR CONCAT(LOWER(first_name), ' ', LOWER(last_name)) LIKE ? OR location LIKE ? ORDER BY location");
+        $stmt = $this->connection->prepare("SELECT * FROM `returns` WHERE first_name LIKE ? OR last_name LIKE ? OR employee_id = ? OR CONCAT(LOWER(first_name), ' ', LOWER(last_name)) LIKE ? OR location LIKE ? ORDER BY location");
         $like = "%$query%";
         $stmt->bind_param("sssss", $like, $like, $query, $like, $like);
         $stmt->execute();
         $result = $stmt->get_result();
-        $employees = [];
+        $returns = [];
         while ($row = $result->fetch_assoc()) {
-            $employee = new Employee($row["id"], $row["employee_id"], $row["first_name"], $row["last_name"], $row["location"]);
-            $employees[] = $employee;
+            $employee = new ReturnItem($row["id"], $row["employee_id"], $row["first_name"], $row["last_name"], $row["location"]);
+            $returns[] = $employee;
         }
-        return $employees;
+        return $returns;
     }
 
     /**
@@ -79,7 +79,7 @@ class Employees
      */
     public function import(string $type, mixed $file): array
     {
-        $this->connection->query("TRUNCATE TABLE `employees`");
+        $this->connection->query("TRUNCATE TABLE `returns`");
         $reader = new Xlsx();
         $spreadsheet = $reader->load($file["tmp_name"]);
         $worksheet = $spreadsheet->getActiveSheet();
@@ -87,7 +87,7 @@ class Employees
         array_shift($rows);
         $count = 0;
         foreach ($rows as $row) {
-            $employee = new Employee(0, $row[0], $row[1], $row[2], $row[3]);
+            $employee = new ReturnItem(0, $row[0], $row[1], $row[2], $row[3]);
             $this->add($employee);
             $count++;
         }
