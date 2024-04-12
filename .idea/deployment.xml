@@ -16,6 +16,8 @@
             <excludedPath local="true" path="$PROJECT_DIR$/composer.lock" />
             <excludedPath local="true" path="$PROJECT_DIR$/package.json" />
             <excludedPath local="true" path="$PROJECT_DIR$/logs" />
+            <excludedPath path="/.user.ini" />
+            <excludedPath path="/.htaccess" />
           </excludedPaths>
         </serverdata>
       </paths>
