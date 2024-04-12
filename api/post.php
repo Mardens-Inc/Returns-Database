@@ -1,6 +1,6 @@
 <?php
 
-use EmployeeList\Employees;
+use EmployeeList\Returns;
 use Slim\Factory\AppFactory;
 
 require_once $_SERVER['DOCUMENT_ROOT'] . '/vendor/autoload.php';
@@ -10,7 +10,7 @@ $app->addRoutingMiddleware();
 $app->addErrorMiddleware(true, true, true);
 $app->setBasePath("/api");
 require_once $_SERVER['DOCUMENT_ROOT'] . '/assets/php/Employees.php';
-$employees = new Employees();
+$employees = new Returns();
 
 
 $app->post("/import", function ($request, $response, $args) use ($employees) {
