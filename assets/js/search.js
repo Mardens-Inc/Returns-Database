@@ -1,5 +1,4 @@
-import {startLoading, stopLoading} from 'https://cdn.jsdelivr.net/gh/Drew-Chase/ChaseUI@24e448eb71ee33daffa7f58b65e6704a5d80676a/js/loading.js';
-import {alert, openPopup, closePopup} from 'https://cdn.jsdelivr.net/gh/Drew-Chase/ChaseUI@24e448eb71ee33daffa7f58b65e6704a5d80676a/js/popup.js';
+import {alert, openPopup} from 'https://cdn.jsdelivr.net/gh/Drew-Chase/ChaseUI@24e448eb71ee33daffa7f58b65e6704a5d80676a/js/popup.js';
 
 /**
  * @typedef Employee
