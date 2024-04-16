@@ -2,11 +2,13 @@
   <library name="Generated files" type="javaScript">
     <properties>
       <sourceFilesUrls>
+        <item url="file://$PROJECT_DIR$/Filemaker.min.js" />
         <item url="file://$PROJECT_DIR$/assets/js/search.min.js" />
         <item url="file://$PROJECT_DIR$/import_from_filemaker.min.js" />
       </sourceFilesUrls>
     </properties>
     <CLASSES>
+      <root url="file://$PROJECT_DIR$/Filemaker.min.js" />
       <root url="file://$PROJECT_DIR$/assets/js/search.min.js" />
       <root url="file://$PROJECT_DIR$/import_from_filemaker.min.js" />
     </CLASSES>
