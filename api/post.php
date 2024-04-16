@@ -1,5 +1,6 @@
 <?php
 
+use ReturnsDatabase\DrivesLicense;
 use ReturnsDatabase\ReturnItem;
 use Slim\Factory\AppFactory;
 
@@ -14,15 +15,21 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/assets/php/ReturnItem.php';
 
 $app->post("/", function ($request, $response, $args) {
     $data = $request->getParsedBody();
-    $returnItem = ReturnItem::fromJson($data);
+    $returnItem = @ReturnItem::fromJson($data);
     try {
-        if ($returnItem->insert()) {
+        if (@$returnItem->insert()) {
             return $response->withStatus(200)->withJson($returnItem);
         } else
             return $response->withStatus(500)->withJson(["error" => "Failed to insert"]);
     } catch (Exception $e) {
         return $response->withStatus(500)->withJson(["error" => $e->getMessage()]);
     }
+});
+
+$app->post("/license", function ($request, $response, $args) {
+    require_once $_SERVER['DOCUMENT_ROOT'] . '/assets/php/DrivesLicense.php';
+    $code = file_get_contents("php://input");
+    return $response->withHeader("Content-Type", "application/json")->withJson(@(new DrivesLicense($code))->toArray());
 });
 
 $app->run();
