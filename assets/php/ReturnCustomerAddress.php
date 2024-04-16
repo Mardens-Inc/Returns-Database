@@ -22,6 +22,7 @@ class ReturnCustomerAddress
      * @var string $state The state value
      */
     public string $state;
+    public string $zip;
 
     /**
      * Class constructor.
@@ -30,14 +31,16 @@ class ReturnCustomerAddress
      * @param string $street The street of the address.
      * @param string $city The city of the address.
      * @param string $state The state of the address.
+     * @param string $zip The zip code of the address.
      * @return void
      */
-    public function __construct(int $id, string $street, string $city, string $state)
+    public function __construct(int $id, string $street, string $city, string $state, string $zip)
     {
         $this->id = $id;
         $this->street = $street;
         $this->city = $city;
         $this->state = $state;
+        $this->zip = $zip;
     }
 
     /**
@@ -48,7 +51,7 @@ class ReturnCustomerAddress
      */
     static function fromJson(array $json): ReturnCustomerAddress
     {
-        return new ReturnCustomerAddress($json['id'] ?? -1, $json['street'], $json['city'], $json['state']);
+        return new ReturnCustomerAddress($json['id'] ?? -1, $json['street'], $json['city'], $json['state'], $json['zip']);
     }
 
     /**
@@ -60,18 +63,18 @@ class ReturnCustomerAddress
     public function insert(): bool
     {
         $item = $this->checkIfExists();
-        if($item) {
+        if ($item) {
             $this->id = $item->id;
             return true;
         }
         $connection = Connection::connect();
-        $stmt = $connection->prepare("INSERT INTO `returns_addr` (street, city, state) VALUES (?, ?, ?)");
+        $stmt = $connection->prepare("INSERT INTO `returns_addr` (street, city, state, zip) VALUES (?, ?, ?, ?)");
 
         if ($stmt === false) {
             throw new Exception("Failed to prepare the statement");
         }
 
-        $stmt->bind_param("sss", $this->street, $this->city, $this->state);
+        $stmt->bind_param("ssss", $this->street, $this->city, $this->state, $this->zip);
 
         if (!$stmt->execute()) {
             throw new Exception("Failed to execute the statement");
@@ -123,8 +126,8 @@ class ReturnCustomerAddress
     public function checkIfExists(): ReturnCustomerAddress|false
     {
         $db = Connection::connect();
-        $stmt = $db->prepare("SELECT * FROM returns_addr WHERE street = ? AND city = ? AND state = ? LIMIT 1");
-        $stmt->bind_param('sss', $this->street, $this->city, $this->state);
+        $stmt = $db->prepare("SELECT * FROM returns_addr WHERE street = ? AND city = ? AND state = ? AND zip = ? LIMIT 1");
+        $stmt->bind_param('ssss', $this->street, $this->city, $this->state, $this->zip);
         $stmt->execute();
         $result = $stmt->get_result();
         return $result->num_rows > 0 ? ReturnCustomerAddress::fromJson($result->fetch_assoc()) : false;
