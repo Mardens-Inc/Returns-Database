@@ -23,19 +23,10 @@ class ReturnItem
     public Employee $employee;
     public ReturnLocation $store;
     public ReturnCustomerAddress $customerAddress;
+    public string $phone;
+    public string $email;
 
-    /**
-     * @param int $id
-     * @param DateTime $date
-     * @param string $first_name
-     * @param string $last_name
-     * @param ReturnType $type
-     * @param GiftCard|null $card
-     * @param Employee $employee
-     * @param ReturnLocation $store
-     * @param ReturnCustomerAddress $customerAddress
-     */
-    public function __construct(int $id, DateTime $date, string $first_name, string $last_name, ReturnType $type, ?GiftCard $card, Employee $employee, ReturnLocation $store, ReturnCustomerAddress $customerAddress)
+    public function __construct(int $id, DateTime $date, string $first_name, string $last_name, ReturnType $type, ?GiftCard $card, Employee $employee, ReturnLocation $store, ReturnCustomerAddress $customerAddress, string $phone, string $email)
     {
         $this->id = $id;
         $this->date = $date;
@@ -46,11 +37,11 @@ class ReturnItem
         $this->employee = $employee;
         $this->store = $store;
         $this->customerAddress = $customerAddress;
+        $this->phone = $phone;
+        $this->email = $email;
     }
 
-    /**
-     * @throws Exception
-     */
+
     public static function fromJson(array $json): ReturnItem
     {
         $card = $json["card"];
@@ -93,7 +84,9 @@ class ReturnItem
             $card,
             $emp,
             $loc,
-            $addr
+            $addr,
+            $json['phone'],
+            $json['email']
         );
     }
 
@@ -113,6 +106,7 @@ class ReturnItem
             return null;
         }
     }
+
 
     public static function getAll(): array
     {
@@ -149,27 +143,16 @@ class ReturnItem
     }
 
 
-    /**
-     * Returns a template ReturnItem object.
-     *
-     * @return ReturnItem
-     */
     public static function template(): ReturnItem
     {
 
         $emp = new Employee(-1, "", "", "");
         $loc = new ReturnLocation(-1, "", "");
         $card = new GiftCard(-1, new DateTime(), 0.00, "");
-        $cust = new ReturnCustomerAddress(-1, "", "", "");
-        return new ReturnItem(-1, new DateTime(), "", "", ReturnType::NoReceiptMRC, $card, $emp, $loc, $cust);
+        $cust = new ReturnCustomerAddress(-1, "", "", "", "");
+        return new ReturnItem(-1, new DateTime(), "", "", ReturnType::NoReceiptMRC, $card, $emp, $loc, $cust, "", "");
     }
 
-    /**
-     * Insert a return into the database.
-     *
-     * @return bool True if the insert was successful, false otherwise.
-     * @throws Exception If failed to prepare the statement or execute the statement.
-     */
     public function insert(): bool
     {
         if ($this->card != null && $this->card->id == -1)
@@ -186,14 +169,14 @@ class ReturnItem
         }
 
         $connection = Connection::connect();
-        $stmt = $connection->prepare("INSERT INTO `returns` (first_name, last_name, type, card, employee, store, customer_addr) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $connection->prepare("INSERT INTO `returns` (first_name, last_name, type, card, employee, store, customer_addr, phone, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         if ($stmt === false) {
             throw new Exception("Failed to prepare the statement");
         }
 
         $typeNumber = $this->type->value;
-        $stmt->bind_param("ssiiiii", $this->first_name, $this->last_name, $typeNumber, $this->card->id, $this->employee->employee_id, $this->store->id, $this->customerAddress->id);
+        $stmt->bind_param("ssiiiiiss", $this->first_name, $this->last_name, $typeNumber, $this->card->id, $this->employee->employee_id, $this->store->id, $this->customerAddress->id, $this->phone, $this->email);
 
         if (!$stmt->execute()) {
             throw new Exception("Failed to execute the statement");
@@ -203,6 +186,7 @@ class ReturnItem
 
         return $stmt->affected_rows > 0;
     }
+
 
     public static function clear(?DateTime $olderThan = null): int
     {
@@ -221,22 +205,15 @@ class ReturnItem
         }
     }
 
-    /**
-     * Check if a ReturnItem already exists in the database.
-     *
-     * @return false|ReturnItem Returns a ReturnItem if it exists, otherwise returns false.
-     * @throws Exception
-     */
     public function checkIfExists(): false|ReturnItem
     {
         $connection = Connection::connect();
-        $stmt = $connection->prepare("SELECT * FROM `returns` WHERE first_name = ? AND last_name = ? AND type = ? AND card = ? AND employee = ? AND store = ? AND customer_addr = ? LIMIT 1");
+        $stmt = $connection->prepare("SELECT * FROM `returns` WHERE first_name = ? AND last_name = ? AND type = ? AND card = ? AND employee = ? AND store = ? AND customer_addr = ? AND phone = ? AND email = ? LIMIT 1");
         $typeNumber = $this->type->value;
-        $stmt->bind_param("ssiiiii", $this->first_name, $this->last_name, $typeNumber, $this->card->id, $this->employee->employee_id, $this->store->id, $this->customerAddress->id);
+        $stmt->bind_param("ssiiiiiss", $this->first_name, $this->last_name, $typeNumber, $this->card->id, $this->employee->employee_id, $this->store->id, $this->customerAddress->id, $this->phone, $this->email);
         $stmt->execute();
         $result = $stmt->get_result();
         return $result->num_rows > 0 ? self::fromJson($result->fetch_assoc()) : false;
     }
-
 
 }
