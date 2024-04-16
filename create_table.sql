@@ -15,6 +15,7 @@ create table if not exists returns_addr
     street VARCHAR(255),
     city   VARCHAR(100),
     state  VARCHAR(2),
+    zip    VARCHAR(10),
     PRIMARY KEY (id)
 );
 create table if not exists locations
@@ -30,6 +31,8 @@ create table if not exists returns
     date          DATETIME DEFAULT CURRENT_TIMESTAMP,
     first_name    VARCHAR(100),
     last_name     VARCHAR(100),
+    phone         VARCHAR(20),
+    email         VARCHAR(100),
     type          TINYINT NOT NULL,
     card          INT      DEFAULT NULL,
     employee      INT     NOT NULL,
