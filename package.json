@@ -3,7 +3,8 @@
 	"version": "0.0.1",
 	"description": "",
 	"scripts": {
-		"vite": "vite"
+		"vite": "vite",
+		"import_from_filemaker": "node import_from_filemaker.js"
 	},
 	"repository": {
 		"type": "git",
