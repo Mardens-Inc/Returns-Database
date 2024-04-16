@@ -2,8 +2,8 @@
 <project version="4">
   <component name="WebServers">
     <option name="servers">
-      <webServer id="dbae0234-51dc-4d06-a87d-457874f5a243" name="FTP" url="http://employees.mardens.com">
-        <fileTransfer host="employees.mardens.com" port="21">
+      <webServer id="dbae0234-51dc-4d06-a87d-457874f5a243" name="FTP" url="http://returns.mardens.com">
+        <fileTransfer host="returns.mardens.com" port="21">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
