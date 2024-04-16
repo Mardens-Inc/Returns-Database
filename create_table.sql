@@ -5,8 +5,8 @@ create table if not exists gift_cards
 (
     id     INT AUTO_INCREMENT,
     date   DATETIME DEFAULT CURRENT_TIMESTAMP,
-    amount FLOAT       NOT NULL,
-    card   VARCHAR(20) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    card   VARCHAR(20)    NOT NULL,
     PRIMARY KEY (id)
 );
 create table if not exists returns_addr
@@ -26,16 +26,18 @@ create table if not exists locations
 );
 create table if not exists returns
 (
-    id         INT AUTO_INCREMENT,
-    date       DATETIME DEFAULT CURRENT_TIMESTAMP,
-    first_name VARCHAR(100),
-    last_name  VARCHAR(100),
-    type       TINYINT NOT NULL,
-    card       INT      DEFAULT NULL,
-    employee   INT     NOT NULL,
-    store      INT     NOT NULL,
+    id            INT AUTO_INCREMENT,
+    date          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    first_name    VARCHAR(100),
+    last_name     VARCHAR(100),
+    type          TINYINT NOT NULL,
+    card          INT      DEFAULT NULL,
+    employee      INT     NOT NULL,
+    store         INT     NOT NULL,
+    customer_addr INT     NOT NULL,
     PRIMARY KEY (id),
-    FOREIGN KEY (card) REFERENCES gift_cards (id),
-    FOREIGN KEY (employee) REFERENCES employees (id),
-    FOREIGN KEY (store) REFERENCES locations (id)
+    FOREIGN KEY (card) REFERENCES stores.gift_cards (id),
+    FOREIGN KEY (employee) REFERENCES stores.employees (id),
+    FOREIGN KEY (store) REFERENCES stores.locations (id),
+    FOREIGN KEY (customer_addr) REFERENCES stores.returns_addr (id)
 );
