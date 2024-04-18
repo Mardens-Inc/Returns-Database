@@ -51,13 +51,11 @@ filemaker.getRecordCount()
                 }
             }
 
-            console.log(JSON.stringify(item, null, 4));
-
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-            // fetch("http://returns.local/api/", {method: "POST", body: JSON.stringify(item), headers: {"Content-Type": "application/json"}}).then(() => {
-            //     console.log(`Processed ${completed}/${records.length} (${completed / records.length}%) records.`)
-            //     completed++;
-            // })
+            fetch("http://returns.local/api/", {method: "POST", body: JSON.stringify(item), headers: {"Content-Type": "application/json"}}).then(() => {
+                completed++;
+                console.log(`Processed ${completed}/${records.length} (${completed / records.length}%) records.`)
+            }).catch(console.error)
 
         });
     });
