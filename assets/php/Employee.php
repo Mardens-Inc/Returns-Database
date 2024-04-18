@@ -4,88 +4,121 @@ namespace ReturnsDatabase;
 
 use Exception;
 
-class Employee
+class Employee implements IDatabaseItem
 {
-    /**
-     *
-     */
-    public int $employee_id;
-    /**
-     * @var string The first name of the employee.
-     *
-     * @ORM\Column(name="first_name", type="string", length=100, nullable=true)
-     */
+    public int $id;
     public string $first_name;
-    /**
-     * @var string $last_name The last name of the employee. This field can be null if the last name is not provided.
-     */
     public string $last_name;
-    /**
-     * The location of the employee.
-     *
-     * @var string
-     */
     public string $location;
 
     /**
      * Constructor for creating a new employee object.
      *
-     * @param string $employee_id The employee ID of the employee.
+     * @param int $id The employee ID of the employee.
      * @param string $first_name The first name of the employee.
      * @param string $last_name The last name of the employee.
      * @param string $location The location of the employee.
      * @return void
      */
-    function __construct(string $employee_id, string $first_name, string $last_name, string $location)
+    function __construct(int $id, string $first_name, string $last_name, string $location)
     {
-        $this->employee_id = $employee_id;
+        $this->id = $id;
         $this->first_name = $first_name;
         $this->last_name = $last_name;
         $this->location = $location;
     }
 
-    /**
-     * Creates a new Employee object from an associative array representing a row in the database.
-     *
-     * @param array $row The array containing the row data.
-     * @return Employee The created Employee object.
-     */
-    static function fromJson(array $row): Employee
+
+    public static function from_json(array $row): Employee
     {
-        return new Employee($row['id'] ?? -1, $row['first_name'], $row['last_name'], $row['location']);
+        return new Employee($row['id'], $row['first_name'], $row['last_name'], $row['location']);
     }
 
-    /**
-     * Retrieves an Employee object by their ID.
-     *
-     * @param int $employee_id The ID of the employee.
-     * @return Employee|null The Employee object, or null if no employee was found.
-     */
-    public static function byId(int $employee_id): ?Employee
+    public static function by_id(int $id): ?Employee
     {
-        $db = Connection::connect();
-        $statement = $db->prepare("SELECT * FROM `employees` WHERE id = ? LIMIT 1");
-        $statement->bind_param("i", $employee_id);
-        $statement->execute();
-        $result = $statement->get_result();
-        if ($result->num_rows == 0) return null;
-        return self::fromJson($result->fetch_assoc());
+        $connection = Connection::connect();
+        $result = $connection->query("SELECT * FROM employees WHERE id = $id");
+        if ($result->num_rows == 0) {
+            return null;
+        }
+        $row = $result->fetch_assoc();
+        return self::from_json($row);
     }
 
-    /**
-     * Retrieves all employees from the database.
-     *
-     * @return array An array containing all employee objects.
-     */
-    public static function getAll(): array
+    public static function search(string $query): array
     {
-        $db = Connection::connect();
-        $results = $db->query("SELECT * FROM `employees`");
+        $connection = Connection::connect();
+        $result = $connection->prepare("SELECT * FROM employees WHERE first_name LIKE ? OR last_name LIKE ? OR location LIKE ? OR concat(first_name, ' ', last_name) LIKE ?");
+        $query = "%$query%";
+        $result->bind_param("ssss", $query, $query, $query, $query);
+        $result->execute();
+        $result = $result->get_result();
         $employees = [];
-        while ($row = $results->fetch_assoc()) {
-            $employees[] = self::fromJson($row);
+        while ($row = $result->fetch_assoc()) {
+            $employees[] = self::from_json($row);
         }
         return $employees;
     }
 
+    public static function all(): array
+    {
+        $connection = Connection::connect();
+        $result = $connection->query("SELECT * FROM employees");
+        $employees = [];
+        while ($row = $result->fetch_assoc()) {
+            $employees[] = self::from_json($row);
+        }
+        return $employees;
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function save(): void
+    {
+        throw new Exception("Please use the employee api for modify the employee data.");
+    }
+
+    public function delete(): void
+    {
+        throw new Exception("Please use the employee api for modify the employee data.");
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function update(): void
+    {
+        throw new Exception("Please use the employee api for modify the employee data.");
+    }
+
+    public function exists(): int
+    {
+        if (self::is_empty()) return -1;
+        $result = Connection::connect()->prepare("SELECT id FROM employees WHERE first_name = ? AND last_name = ?");
+        $result->bind_param("ss", $this->first_name, $this->last_name);
+        $result->execute();
+        $result = $result->get_result();
+        return $result->num_rows > 0 ? $this->id = $result->fetch_assoc()['id'] : -1;
+    }
+
+    public static function empty(): Employee
+    {
+        return new Employee(-1, "", "", "");
+    }
+
+    public function is_empty(): bool
+    {
+        return $this->id == -1;
+    }
+
+    public function __toString(): string
+    {
+        return "Employee: $this->first_name $this->last_name";
+    }
+
+    public function __toArray(): array
+    {
+        return (array)$this;
+    }
 }
