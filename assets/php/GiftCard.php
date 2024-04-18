@@ -5,7 +5,7 @@ namespace ReturnsDatabase;
 use DateTime;
 use Exception;
 
-class GiftCard
+class GiftCard implements IDatabaseItem
 {
     /**
      * @var int $id The unique identifier for the entity.
@@ -40,114 +40,134 @@ class GiftCard
         $this->card = $card;
     }
 
-    /**
-     * Creates a gift card object from a database row
-     *
-     * @param array $row The database row from which to create the gift card
-     *
-     * @return GiftCard The created gift card object
-     * @throws Exception If the date cannot be parsed
-     */
-    static function fromJson(array $row): GiftCard
+
+    public static function from_json(array $row): GiftCard
     {
-        return new GiftCard($row['id'] ?? -1, new DateTime($row['date']), $row['amount'], $row['card']);
+        try {
+            return new GiftCard($row['id'], new DateTime($row['date']), $row['amount'], $row['card']);
+        } catch (Exception $e) {
+            return self::empty();
+        }
     }
 
-    /**
-     * Retrieves a gift card by its ID
-     *
-     * @param int $id The ID of the gift card to retrieve
-     *
-     * @return GiftCard|null The retrieved gift card object if found, null otherwise
-     */
-    public static function byId(int $id): ?GiftCard
+    public static function by_id(int $id): ?GiftCard
     {
-        $db = Connection::connect();
-        $stmt = $db->prepare('SELECT * FROM gift_cards WHERE id = ?');
-        $stmt->bind_param('i', $id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $row = $result->fetch_assoc();
-
-        if ($row === false) {
+        $result = Connection::connect()->query("SELECT * FROM gift_cards WHERE id = $id");
+        if ($result->num_rows == 0) {
             return null;
         }
-
+        $row = $result->fetch_assoc();
         try {
-            return self::fromJson((array)$row);
+            return self::from_json($row);
         } catch (Exception $e) {
             return null;
         }
     }
 
-    /**
-     * Retrieves all gift cards from the database.
-     *
-     * @return array An array of gift card objects.
-     */
-    public static function getAll(): array
+    public static function by_card_number(int $card): ?GiftCard
     {
-        $db = Connection::connect();
-        $results = $db->query("SELECT * FROM gift_cards");
-        $giftCards = [];
-        while ($row = $results->fetch_assoc()) {
+        $result = Connection::connect()->query("SELECT * FROM gift_cards WHERE card = $card");
+        if ($result->num_rows == 0) {
+            return null;
+        }
+        $row = $result->fetch_assoc();
+        try {
+            return self::from_json($row);
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    public static function search(string $query): array
+    {
+        $stmt = Connection::connect()->prepare("SELECT * FROM gift_cards WHERE card LIKE ?");
+        $stmt->bind_param("s", $query);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $gift_cards = [];
+        while ($row = $result->fetch_assoc()) {
             try {
-                $giftCards[] = self::fromJson($row);
-            } catch (Exception) {
+                $gift_cards[] = self::from_json($row);
+            } catch (Exception $e) {
                 continue;
             }
         }
-        return $giftCards;
+        return $gift_cards;
     }
 
-    /**
-     * Inserts a gift card into the database
-     *
-     * @return bool Returns true if the gift card was successfully inserted, false otherwise
-     * @throws Exception Throws an exception if there is an error preparing or executing the statement
-     */
-    public function insert(): bool
+    public static function all(): array
     {
-        $exists = $this->checkIfExists();
-        if ($exists) {
-            $this->id = $exists->id;
-            return true;
+        $result = Connection::connect()->query("SELECT * FROM gift_cards");
+        $gift_cards = [];
+        while ($row = $result->fetch_assoc()) {
+            try {
+                $gift_cards[] = self::from_json($row);
+            } catch (Exception $e) {
+                continue;
+            }
         }
+        return $gift_cards;
+    }
 
+    public function save(): void
+    {
+        if ($this->exists() != -1) {
+            $this->update();
+            return;
+        }
         $connection = Connection::connect();
-        $stmt = $connection->prepare("INSERT INTO `gift_cards` (amount, card) VALUES (?, ?)");
-
-        if ($stmt === false) {
-            throw new Exception("Failed to prepare the statement");
-        }
-
-        $stmt->bind_param("ds", $this->amount, $this->card);
-
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to execute the statement");
-        }
-
-        $this->id = $stmt->insert_id;
-
-        return $stmt->affected_rows > 0;
-    }
-
-    /**
-     * Checks if a gift card with a specific amount and card exists in the database
-     *
-     * @return false|GiftCard False if the gift card doesn't exist, otherwise the retrieved gift card object
-     * @throws Exception
-     */
-    public function checkIfExists(): false|GiftCard
-    {
-        $db = Connection::connect();
-        $stmt = $db->prepare("SELECT * FROM gift_cards WHERE amount = ? AND card = ?");
-        $stmt->bind_param("ds", $this->amount, $this->card);
+        $stmt = $connection->prepare("INSERT INTO gift_cards (date, amount, card) VALUES (?, ?, ?)");
+        $date = $this->date->format('Y-m-d H:i:s');
+        $stmt->bind_param("sds", $date, $this->amount, $this->card);
         $stmt->execute();
-        $result = $stmt->get_result();
-//        die(json_encode($this));
-        return $result->num_rows > 0 ? self::fromJson($result->fetch_assoc()) : false;
+        $this->id = $connection->insert_id;
     }
 
+    public function delete(): void
+    {
+        if ($this->exists() == -1) {
+            throw new Exception("Gift card does not exist.");
+        }
+        Connection::connect()->query("DELETE FROM gift_cards WHERE id = $this->id");
+    }
 
+    public function update(): void
+    {
+        if ($this->exists() == -1) {
+            $this->save();
+        }
+        $stmt = Connection::connect()->prepare("UPDATE gift_cards SET amount = ?, card = ? WHERE id = ?");
+        $stmt->bind_param("dsi", $this->amount, $this->card, $this->id);
+        $stmt->execute();
+    }
+
+    public function exists(): int
+    {
+        if ($this->is_empty()) return -1;
+        $result = Connection::connect()->prepare("SELECT id FROM gift_cards WHERE card = ? AND amount = ? LIMIT 1");
+        $result->bind_param("sd", $this->card, $this->amount);
+        $result->execute();
+        $result = $result->get_result();
+        return $result->num_rows > 0 ? $this->id = $result->fetch_assoc()['id'] : -1;
+    }
+
+    public static function empty(): GiftCard
+    {
+        return new GiftCard(-1, new DateTime(), 0.0, "");
+    }
+
+    public function __toString(): string
+    {
+        return "GiftCard: $this->id, $this->date, $this->amount, $this->card";
+    }
+
+    public function __toArray(): array
+    {
+        return (array)$this;
+    }
+
+    public function is_empty(): bool
+    {
+        return $this->id == -1;
+    }
 }
