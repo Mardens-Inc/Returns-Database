@@ -9,16 +9,21 @@ create table if not exists gift_cards
     card   VARCHAR(20)    NOT NULL,
     PRIMARY KEY (id)
 );
-create table if not exists returns_addr
+create table if not exists customers
 (
-    id     INT AUTO_INCREMENT,
-    street VARCHAR(255),
-    city   VARCHAR(100),
-    state  VARCHAR(2),
-    zip    VARCHAR(10),
+    id            INT AUTO_INCREMENT,
+    first_name    VARCHAR(100),
+    last_name     VARCHAR(100),
+    street        VARCHAR(255),
+    city          VARCHAR(100),
+    state         VARCHAR(2),
+    zip           VARCHAR(5),
+    date_of_birth DATE,
+    phone         VARCHAR(20),
+    email         VARCHAR(100),
     PRIMARY KEY (id)
 );
-create table if not exists locations
+create table if not exists stores
 (
     id      INT AUTO_INCREMENT,
     city    VARCHAR(100),
@@ -27,20 +32,16 @@ create table if not exists locations
 );
 create table if not exists returns
 (
-    id            INT AUTO_INCREMENT,
-    date          DATETIME DEFAULT CURRENT_TIMESTAMP,
-    first_name    VARCHAR(100),
-    last_name     VARCHAR(100),
-    phone         VARCHAR(20),
-    email         VARCHAR(100),
-    type          TINYINT NOT NULL,
-    card          INT      DEFAULT NULL,
-    employee      INT     NOT NULL,
-    store         INT     NOT NULL,
-    customer_addr INT     NOT NULL,
+    id       INT AUTO_INCREMENT,
+    date     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    type     TINYINT NOT NULL,
+    card     INT      DEFAULT NULL,
+    employee INT      DEFAULT NULL,
+    store    INT     NOT NULL,
+    customer INT     NOT NULL,
     PRIMARY KEY (id),
-    FOREIGN KEY (card) REFERENCES stores.gift_cards (id),
-    FOREIGN KEY (employee) REFERENCES stores.employees (id),
-    FOREIGN KEY (store) REFERENCES stores.locations (id),
-    FOREIGN KEY (customer_addr) REFERENCES stores.returns_addr (id)
+    FOREIGN KEY (card) REFERENCES stores.gift_cards (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (employee) REFERENCES stores.employees (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (store) REFERENCES stores.stores (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (customer) REFERENCES stores.customers (id) ON DELETE CASCADE ON UPDATE CASCADE
 );
