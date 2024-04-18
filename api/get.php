@@ -1,5 +1,6 @@
 <?php
 
+use ReturnsDatabase\Customer;
 use ReturnsDatabase\DrivesLicense;
 use ReturnsDatabase\ReturnItem;
 use Slim\Factory\AppFactory;
@@ -11,7 +12,6 @@ $app->addRoutingMiddleware();
 $app->addErrorMiddleware(true, true, true);
 $app->setBasePath("/api");
 require_once $_SERVER['DOCUMENT_ROOT'] . '/assets/php/ReturnItem.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/assets/php/DrivesLicense.php';
 
 $app->get("/", function ($request, $response, $args) {
     try {
@@ -22,7 +22,7 @@ $app->get("/", function ($request, $response, $args) {
 });
 $app->get("/search", function ($request, $response, $args) {
     $query = $request->getQueryParams()["q"];
-    return $response->withHeader("Content-Type", "application/json")->withJson(@ReturnItem::search($query));
+    return $response->withHeader("Content-Type", "application/json")->withJson(@Customer::search($query));
 });
 
 $app->get("/template", function ($request, $response, $args) {
