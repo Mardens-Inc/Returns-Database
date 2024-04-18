@@ -4,137 +4,125 @@ namespace ReturnsDatabase;
 
 require_once "ReturnType.php";
 require_once "Employee.php";
-require_once "ReturnLocation.php";
-require_once "ReturnCustomerAddress.php";
+require_once "Customer.php";
 require_once "GiftCard.php";
 require_once "Connection.php";
 
 use DateTime;
 use Exception;
 
-class ReturnItem
+class ReturnItem implements IDatabaseItem
 {
     public int $id;
     public DateTime $date;
-    public string $first_name;
-    public string $last_name;
     public ReturnType $type;
     public ?GiftCard $card;
     public Employee $employee;
-    public ReturnLocation $store;
-    public ReturnCustomerAddress $customerAddress;
-    public string $phone;
-    public string $email;
+    public Customer $customer;
+    public Store $store;
 
-    public function __construct(int $id, DateTime $date, string $first_name, string $last_name, ReturnType $type, ?GiftCard $card, Employee $employee, ReturnLocation $store, ReturnCustomerAddress $customerAddress, string $phone, string $email)
+    public function __construct(int $id, DateTime $date, ReturnType $type, ?GiftCard $card, Employee $employee, Customer $customer, Store $store)
     {
         $this->id = $id;
         $this->date = $date;
-        $this->first_name = $first_name;
-        $this->last_name = $last_name;
         $this->type = $type;
         $this->card = $card;
         $this->employee = $employee;
+        $this->customer = $customer;
         $this->store = $store;
-        $this->customerAddress = $customerAddress;
-        $this->phone = $phone;
-        $this->email = $email;
     }
 
 
-    public static function fromJson(array $json): ReturnItem
+    /**
+     * @throws Exception
+     */
+    public static function from_json(array $row): ReturnItem
     {
-        $card = $json["card"];
-        $emp = $json["employee"];
-        $loc = $json["store"];
-        $addr = $json["customerAddress"] ?? $json["customer_addr"];
+        $employee = $row["employee"];
+        $customer = $row["customer"];
+        $card = $row["card"];
+        $type = $row["type"];
+        $store = $row["store"];
 
-        if ($card != null) {
-            if (is_numeric($card)) {
-                $card = GiftCard::byId(intval($card));
-            } else {
-                $card = GiftCard::fromJson($card);
-            }
+        // Parse Employee
+        if (is_numeric($employee)) {
+            $employee = Employee::by_id($employee);
+        } else if (is_array($employee)) {
+            $employee = Employee::from_json($employee);
         }
-
-        if (is_numeric($emp)) {
-            $emp = Employee::byId(intval($emp));
+        // Parse Customer
+        if (is_numeric($customer)) {
+            $customer = Customer::by_id($customer);
+        } else if (is_array($customer)) {
+            $customer = Customer::from_json($customer);
         } else {
-            throw new Exception("Employee must be an integer");
+            throw new Exception("Invalid Customer!");
         }
-
-        if (is_numeric($loc)) {
-            $loc = ReturnLocation::byId(intval($loc));
+        // Parse GiftCard
+        if (is_numeric($card)) {
+            $card = GiftCard::by_id($card);
+        } else if (is_array($card)) {
+            $card = GiftCard::from_json($card);
+        } else if (is_string($card)) {
+            $card = GiftCard::by_card_number($card);
         } else {
-            $loc = ReturnLocation::fromJson($loc);
+            throw new Exception("Invalid Card!");
         }
 
-        if (is_numeric($addr)) {
-            $addr = ReturnCustomerAddress::byId(intval($addr));
+        // Parse ReturnType
+        if (is_numeric($type)) {
+            $type = ReturnType::parse(intval($type));
         } else {
-            $addr = ReturnCustomerAddress::fromJson($addr);
+            throw new Exception("Invalid type, type must be a number.");
         }
 
-        return new ReturnItem(
-            $json['id'] ?? -1,
-            new DateTime($json['date']),
-            $json['first_name'],
-            $json['last_name'],
-            ReturnType::parse($json['type']),
-            $card,
-            $emp,
-            $loc,
-            $addr,
-            $json['phone'],
-            $json['email']
-        );
+        // Parse Store
+        if (is_numeric($store)) {
+            $store = Store::by_id($store);
+        } else if (is_array($store)) {
+            $store = Store::from_json($store);
+        } else {
+            throw new Exception("Invalid Store!");
+        }
+
+        return new ReturnItem($row['id'], new DateTime($row['date']), $type, $card, $employee, $customer, $store);
     }
 
-    public static function byId(int $id): ?ReturnItem
+    public static function by_id(int $id): ?ReturnItem
     {
-        $connection = Connection::connect();
-        $stmt = $connection->prepare("SELECT * FROM `returns` WHERE id = ? LIMIT 1");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if ($result->num_rows == 0) {
-            return null;
-        }
+        $result = Connection::connect()->query("SELECT * FROM returns WHERE id = $id LIMIT 1");
         try {
-            return ReturnItem::fromJson($result->fetch_assoc());
+            return $result->num_rows == 0 ? null : self::from_json($result->fetch_assoc());
         } catch (Exception) {
             return null;
         }
     }
 
-
-    public static function getAll(): array
-    {
-        $connection = Connection::connect();
-        $results = $connection->query("SELECT * FROM `returns`");
-        $returns = [];
-        while ($row = $results->fetch_assoc()) {
-            try {
-                $returns[] = ReturnItem::fromJson($row);
-            } catch (Exception) {
-                continue;
-            }
-        }
-        return $returns;
-    }
-
     public static function search(string $query): array
     {
-        $connection = Connection::connect();
-        $stmt = $connection->prepare("SELECT * FROM `returns` WHERE first_name LIKE ? OR last_name LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ?");
+        $customers = join(',', array_map(function (Customer $customer) {
+            return $customer->id;
+        }, Customer::search($query)));
+        $employees = join(',', array_map(function (Employee $employee) {
+            return $employee->id;
+        }, Employee::search($query)));
+        $gift_cards = join(',', array_map(function (GiftCard $gift_card) {
+            return $gift_card->id;
+        }, GiftCard::search($query)));
+        $stores = join(',', array_map(function (Store $store) {
+            return $store->id;
+        }, Store::search($query)));
+
+
+        $result = Connection::connect()->prepare("SELECT * FROM returns WHERE date LIKE ? OR type = ? OR employee IN (?) OR customer IN (?) OR card IN (?) OR store IN (?)");
         $query = "%$query%";
-        $stmt->bind_param("sss", $query, $query, $query);
-        $stmt->execute();
-        $results = $stmt->get_result();
+        $result->bind_param("sissss", $query, $query, $employees, $customers, $gift_cards, $stores);
+        $result->execute();
+        $result = $result->get_result();
         $returns = [];
-        while ($row = $results->fetch_assoc()) {
+        while ($row = $result->fetch_assoc()) {
             try {
-                $returns[] = ReturnItem::fromJson($row);
+                $returns[] = self::from_json($row);
             } catch (Exception) {
                 continue;
             }
@@ -142,78 +130,88 @@ class ReturnItem
         return $returns;
     }
 
-
-    public static function template(): ReturnItem
+    public static function all(): array
     {
-
-        $emp = new Employee(-1, "", "", "");
-        $loc = new ReturnLocation(-1, "", "");
-        $card = new GiftCard(-1, new DateTime(), 0.00, "");
-        $cust = new ReturnCustomerAddress(-1, "", "", "", "");
-        return new ReturnItem(-1, new DateTime(), "", "", ReturnType::NoReceiptMRC, $card, $emp, $loc, $cust, "", "");
+        $result = Connection::connect()->query("SELECT * FROM returns");
+        $returns = [];
+        while ($row = $result->fetch_assoc()) {
+            try {
+                $returns[] = self::from_json($row);
+            } catch (Exception) {
+                continue;
+            }
+        }
+        return $returns;
     }
 
-    public function insert(): bool
+    public function save(): void
     {
-        if ($this->card != null && $this->card->id == -1)
-            $this->card->insert();
-        if ($this->store->id == -1)
-            $this->store->insert();
-        if ($this->customerAddress->id == -1)
-            $this->customerAddress->insert();
-
-        $exists = $this->checkIfExists();
-        if ($exists) {
-            $this->id = $exists->id;
-            return true;
+        if (self::exists() != -1) {
+            $this->update();
+            return;
         }
 
-        $connection = Connection::connect();
-        $stmt = $connection->prepare("INSERT INTO `returns` (first_name, last_name, type, card, employee, store, customer_addr, phone, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        // Update the referenced tables
+        $this->card->save();
+        $this->customer->save();
+        $this->store->save();
 
-        if ($stmt === false) {
-            throw new Exception("Failed to prepare the statement");
-        }
-
-        $typeNumber = $this->type->value;
-        $stmt->bind_param("ssiiiiiss", $this->first_name, $this->last_name, $typeNumber, $this->card->id, $this->employee->employee_id, $this->store->id, $this->customerAddress->id, $this->phone, $this->email);
-
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to execute the statement");
-        }
-
-        $this->id = $stmt->insert_id;
-
-        return $stmt->affected_rows > 0;
+        $result = Connection::connect()->prepare("INSERT INTO returns (date, type, card, employee, customer, store) VALUES (?, ?, ?, ?, ?, ?)");
+        $date = $this->date->format("Y-m-d H:i:s");
+        $type = $this->type->value;
+        $result->bind_param("sisiii", $date, $type, $this->card->id, $this->employee->id, $this->customer->id, $this->store->id);
+        $result->execute();
     }
 
-
-    public static function clear(?DateTime $olderThan = null): int
+    public function delete(): void
     {
-        $connection = Connection::connect();
-
-        if ($olderThan) {
-            $size = $connection->query("SELECT COUNT(*) FROM `returns`")->fetch_row()[0];
-            $connection->query("TRUNCATE TABLE `returns`");
-            return $size;
-        } else {
-            $stmt = $connection->prepare("DELETE FROM `returns` WHERE date < ?");
-            $formatted = $olderThan->format("Y-m-d H:i:s");
-            $stmt->bind_param("s", $formatted);
-            $stmt->execute();
-            return $stmt->affected_rows;
-        }
+        $result = Connection::connect()->prepare("DELETE FROM returns WHERE id = ?");
+        $result->bind_param("i", $this->id);
+        $result->execute();
     }
 
-    public function checkIfExists(): false|ReturnItem
+    public function update(): void
     {
-        $connection = Connection::connect();
-        $stmt = $connection->prepare("SELECT * FROM `returns` WHERE first_name = ? AND last_name = ? AND type = ? AND card = ? AND employee = ? AND store = ? AND customer_addr = ? AND phone = ? AND email = ? LIMIT 1");
-        $typeNumber = $this->type->value;
-        $stmt->bind_param("ssiiiiiss", $this->first_name, $this->last_name, $typeNumber, $this->card->id, $this->employee->employee_id, $this->store->id, $this->customerAddress->id, $this->phone, $this->email);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        return $result->num_rows > 0 ? self::fromJson($result->fetch_assoc()) : false;
+        // Update the referenced tables
+        $this->card->save();
+        $this->customer->save();
+        $this->store->save();
+
+        $result = Connection::connect()->prepare("UPDATE returns SET date = ?, type = ?, card = ?, employee = ?, customer = ?, store = ? WHERE id = ?");
+        $date = $this->date->format("Y-m-d H:i:s");
+        $type = $this->type->value;
+        $result->bind_param("sisiiii", $date, $type, $this->card->id, $this->employee->id, $this->customer->id, $this->store->id, $this->id);
+        $result->execute();
     }
 
+    public function exists(): int
+    {
+        if (self::is_empty()) return -1;
+        $result = Connection::connect()->prepare("SELECT id FROM returns WHERE type = ? AND card = ? AND employee = ? AND customer = ? AND store = ?");
+        $type = $this->type->value;
+        $result->bind_param("iiiii", $type, $this->card->id, $this->employee->id, $this->customer->id, $this->store->id);
+        $result->execute();
+        $result = $result->get_result();
+        return $result->num_rows > 0 ? $this->id = $result->fetch_assoc()["id"] : -1;
+    }
+
+    public static function empty(): ReturnItem
+    {
+        return new ReturnItem(-1, new DateTime(), ReturnType::parse(0), null, Employee::empty(), Customer::empty(), Store::empty());
+    }
+
+    public function is_empty(): bool
+    {
+        return $this === self::empty();
+    }
+
+    public function __toString(): string
+    {
+        return "Return Item: $this->id, $this->date, $this->type, $this->card, $this->employee, $this->customer, $this->store";
+    }
+
+    public function __toArray(): array
+    {
+        return (array)$this;
+    }
 }
