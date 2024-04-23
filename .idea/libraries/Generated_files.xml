@@ -4,13 +4,15 @@
       <sourceFilesUrls>
         <item url="file://$PROJECT_DIR$/Filemaker.min.js" />
         <item url="file://$PROJECT_DIR$/assets/js/search.min.js" />
-        <item url="file://$PROJECT_DIR$/import_from_filemaker.min.js" />
+        <item url="file://$PROJECT_DIR$/export_from_filemaker.min.js" />
+        <item url="file://$PROJECT_DIR$/import_from_json.min.js" />
       </sourceFilesUrls>
     </properties>
     <CLASSES>
       <root url="file://$PROJECT_DIR$/Filemaker.min.js" />
       <root url="file://$PROJECT_DIR$/assets/js/search.min.js" />
-      <root url="file://$PROJECT_DIR$/import_from_filemaker.min.js" />
+      <root url="file://$PROJECT_DIR$/export_from_filemaker.min.js" />
+      <root url="file://$PROJECT_DIR$/import_from_json.min.js" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
