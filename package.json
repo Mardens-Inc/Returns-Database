@@ -4,7 +4,8 @@
 	"description": "",
 	"scripts": {
 		"vite": "vite",
-		"import_from_filemaker": "node import_from_filemaker.js"
+		"export_from_filemaker": "node export_from_filemaker.js",
+		"import_from_json": "node import_from_json.js"
 	},
 	"repository": {
 		"type": "git",
