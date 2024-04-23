@@ -4,6 +4,7 @@ namespace ReturnsDatabase;
 
 use DateTime;
 use Exception;
+use mysqli;
 
 class GiftCard implements IDatabaseItem
 {
@@ -23,6 +24,7 @@ class GiftCard implements IDatabaseItem
      * @var string $card
      */
     public string $card;
+    private mysqli $connection;
 
     /**
      * Constructor.
@@ -38,13 +40,20 @@ class GiftCard implements IDatabaseItem
         $this->date = $date;
         $this->amount = $amount;
         $this->card = $card;
+        $this->connection = Connection::connect();
     }
 
 
     public static function from_json(array $row): GiftCard
     {
         try {
-            return new GiftCard($row['id'], new DateTime($row['date']), $row['amount'], $row['card']);
+            $date = $row["date"];
+            if (is_array($date)) {
+                $date = new DateTime($date["date"]);
+            } else {
+                $date = new DateTime($date);
+            }
+            return new GiftCard($row['id'] ?? -1, $date, round($row['amount'], 2), $row['card']);
         } catch (Exception $e) {
             return self::empty();
         }
@@ -78,9 +87,14 @@ class GiftCard implements IDatabaseItem
         }
     }
 
-    public static function search(string $query): array
+    public static function search(string $query, int $limit, int $offset, string $sort_column, bool $ascending): array
     {
-        $stmt = Connection::connect()->prepare("SELECT * FROM gift_cards WHERE card LIKE ?");
+        $sort_column = strtolower($sort_column);
+        $sort_column = in_array($sort_column, ['id', 'date', 'amount', 'card']) ? $sort_column : 'date';
+        $ascending = $ascending ? 'ASC' : 'DESC';
+        $connection = Connection::connect();
+        $stmt = $connection->prepare("SELECT * FROM gift_cards WHERE card LIKE ? ORDER BY $sort_column $ascending LIMIT $limit OFFSET $offset");
+        $query = "%$query%";
         $stmt->bind_param("s", $query);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -95,9 +109,12 @@ class GiftCard implements IDatabaseItem
         return $gift_cards;
     }
 
-    public static function all(): array
+    public static function range(int $limit, int $offset, string $sort_column, bool $ascending): array
     {
-        $result = Connection::connect()->query("SELECT * FROM gift_cards");
+        $sort_column = strtolower($sort_column);
+        $sort_column = in_array($sort_column, ['id', 'date', 'amount', 'card']) ? $sort_column : 'date';
+        $ascending = $ascending ? 'ASC' : 'DESC';
+        $result = Connection::connect()->query("SELECT * FROM gift_cards ORDER BY $sort_column $ascending LIMIT $limit OFFSET $offset");
         $gift_cards = [];
         while ($row = $result->fetch_assoc()) {
             try {
@@ -115,12 +132,11 @@ class GiftCard implements IDatabaseItem
             $this->update();
             return;
         }
-        $connection = Connection::connect();
-        $stmt = $connection->prepare("INSERT INTO gift_cards (date, amount, card) VALUES (?, ?, ?)");
+        $stmt = $this->connection->prepare("INSERT INTO gift_cards (date, amount, card) VALUES (?, ?, ?)");
         $date = $this->date->format('Y-m-d H:i:s');
         $stmt->bind_param("sds", $date, $this->amount, $this->card);
         $stmt->execute();
-        $this->id = $connection->insert_id;
+        $this->id = $this->connection->insert_id;
     }
 
     public function delete(): void
@@ -128,7 +144,7 @@ class GiftCard implements IDatabaseItem
         if ($this->exists() == -1) {
             throw new Exception("Gift card does not exist.");
         }
-        Connection::connect()->query("DELETE FROM gift_cards WHERE id = $this->id");
+        $this->connection->query("DELETE FROM gift_cards WHERE id = $this->id");
     }
 
     public function update(): void
@@ -136,7 +152,7 @@ class GiftCard implements IDatabaseItem
         if ($this->exists() == -1) {
             $this->save();
         }
-        $stmt = Connection::connect()->prepare("UPDATE gift_cards SET amount = ?, card = ? WHERE id = ?");
+        $stmt = $this->connection->prepare("UPDATE gift_cards SET amount = ?, card = ? WHERE id = ?");
         $stmt->bind_param("dsi", $this->amount, $this->card, $this->id);
         $stmt->execute();
     }
@@ -144,10 +160,12 @@ class GiftCard implements IDatabaseItem
     public function exists(): int
     {
         if ($this->is_empty()) return -1;
-        $result = Connection::connect()->prepare("SELECT id FROM gift_cards WHERE card = ? AND amount = ? LIMIT 1");
+        $result = $this->connection->prepare("SELECT id FROM gift_cards WHERE card = ? AND amount = ? LIMIT 1");
         $result->bind_param("sd", $this->card, $this->amount);
         $result->execute();
         $result = $result->get_result();
+
+
         return $result->num_rows > 0 ? $this->id = $result->fetch_assoc()['id'] : -1;
     }
 
@@ -161,13 +179,28 @@ class GiftCard implements IDatabaseItem
         return "GiftCard: $this->id, $this->date, $this->amount, $this->card";
     }
 
-    public function __toArray(): array
+    public function jsonSerialize(): array
     {
         return (array)$this;
     }
 
     public function is_empty(): bool
     {
-        return $this->id == -1;
+        return $this === self::empty();
+    }
+
+    public function reload_from_database(): GiftCard
+    {
+        if (self::exists() == -1) return $this;
+        $gift_card = self::by_id($this->id);
+        $this->date = $gift_card->date;
+        $this->amount = $gift_card->amount;
+        $this->card = $gift_card->card;
+        return $this;
+    }
+    public static function count(): int
+    {
+        $result = Connection::connect()->query("SELECT COUNT(*) FROM gift_cards");
+        return $result->fetch_assoc()["COUNT(*)"];
     }
 }
