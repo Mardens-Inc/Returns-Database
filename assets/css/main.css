@@ -40,30 +40,6 @@ body {
     width: -moz-available;
 }
 
-.loading {
-    --size: 3px;
-    border-radius: 100px;
-    width: 100px;
-    height: 100px;
-    border: var(--size) solid transparent;
-    border-left: var(--size) solid red;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    animation: spin 500ms infinite linear;
-}
-
-@keyframes spin {
-    0% {
-        transform: translate(-50%, -50%) rotate(0deg);
-    }
-
-    100% {
-        transform: translate(-50%, -50%) rotate(360deg);
-    }
-}
-
 .error:not(input) {
     color: red;
     font-style: italic;
@@ -116,7 +92,7 @@ nav h1 {
 }
 
 nav input {
-    width: 30%;
+    width: 100%;
     max-width: 500px;
     min-width: 200px;
     height: 50px;
@@ -149,6 +125,7 @@ nav.active input {
     color: white;
     font-size: 1rem;
     height: 40px;
+    width: 30%;
 }
 
 main {
@@ -171,6 +148,7 @@ thead {
     position: sticky;
     top: 0;
     box-shadow: 0 0 10px 5px hsla(0, 0%, 0%, .5);
+    z-index: 1;
 }
 
 thead tr th {
@@ -238,11 +216,11 @@ footer {
         font-size: 1rem;
     }
 
-    nav input{
+    nav input {
         width: 100%;
     }
 
-    table{
+    table {
         margin: 0;
         width: 100%
     }
@@ -265,4 +243,57 @@ footer {
     }
 
 
+}
+
+nav.active label[for="limit"] {
+    display: unset;
+}
+
+label[for="limit"] {
+    display: none;
+    font-size: .75rem;
+    position: absolute;
+    right: 3rem;
+    opacity: .5;
+    top: 2px;
+}
+
+nav.active select {
+    display: unset;
+}
+
+select {
+    display: none;
+    background-color: #40494a;
+    color: #fff;
+    font-size: 1rem;
+    height: 40px;
+    border-radius: 100px;
+    outline: none;
+    border: none;
+    padding-block: .75rem;
+    margin-inline: 1rem;
+    padding-inline: 1rem;
+}
+
+.view-button {
+    max-width: 50px;
+    overflow: hidden;
+    white-space: nowrap;
+    --speed: 500ms;
+    transition: max-width var(--speed);
+}
+
+.view-button span {
+    padding-left: 1rem;
+    opacity: 0;
+    transition: opacity var(--speed);
+}
+
+.view-button:hover {
+    max-width: 200px;
+}
+
+.view-button:hover span {
+    opacity: 1;
 }
