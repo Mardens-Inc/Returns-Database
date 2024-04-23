@@ -15,12 +15,10 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/assets/php/ReturnItem.php';
 
 $app->post("/", function ($request, $response, $args) {
     $data = $request->getParsedBody();
-    $returnItem = @ReturnItem::fromJson($data);
     try {
-        if (@$returnItem->insert()) {
-            return $response->withStatus(200)->withJson($returnItem);
-        } else
-            return $response->withStatus(500)->withJson(["error" => "Failed to insert"]);
+        $returnItem = @ReturnItem::from_json($data);
+        @$returnItem->save();
+        return $response->withStatus(200)->withJson($returnItem);
     } catch (Exception $e) {
         return $response->withStatus(500)->withJson(["error" => $e->getMessage()]);
     }
