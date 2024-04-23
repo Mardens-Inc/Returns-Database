@@ -1,0 +1,130 @@
+<style>
+    #assetspopupsviewreturn-popup {
+        .popup-content {
+            min-width: 500px;
+        }
+
+        .row {
+            white-space: nowrap;
+            flex-wrap: nowrap;
+            border-bottom: 2px solid rgba(255, 255, 255, .1);
+            margin-bottom: 10px;
+
+            .label, .value {
+                width: 100%;
+            }
+        }
+    }
+</style>
+
+<h2 id="transaction-id">Transaction</h2>
+<div class="col" id="transaction">
+    <div class="row" id="return-type">
+        <span class="label">Return Type</span>
+        <span class="value"></span>
+    </div>
+</div>
+<h3 id="customer-name">Customer</h3>
+<div id="customer" class="col">
+    <div id="first-name" class="row">
+        <span class="label">First Name</span>
+        <span class="value"></span>
+    </div>
+    <div id="last-name" class="row">
+        <span class="label">Last Name</span>
+        <span class="value"></span>
+    </div>
+    <div id="address" class="row">
+        <span class="label">Address</span>
+        <span class="value"></span>
+    </div>
+</div>
+<h3>Employee</h3>
+<div id="employee" class="col">
+    <div id="emp-first-name" class="row">
+        <span class="label">First Name</span>
+        <span class="value"></span>
+    </div>
+    <div id="emp-last-name" class="row">
+        <span class="label">Last Name</span>
+        <span class="value"></span>
+    </div>
+    <div id="loc" class="row">
+        <span class="label">Store/Location</span>
+        <span class="value"></span>
+    </div>
+</div>
+<h3>Card</h3>
+<div class="col">
+    <div id="card-amount" class="row">
+        <span class="label">Transaction Amount</span>
+        <span class="value"></span>
+    </div>
+    <div id="card-number" class="row">
+        <span class="label">Card Number</span>
+        <span class="value"></span>
+    </div>
+</div>
+<h3>Store</h3>
+<div class="col">
+    <div id="store-address" class="row">
+        <span class="label">Address</span>
+        <span class="value"></span>
+    </div>
+    <div id="store-city" class="row">
+        <span class="label">City</span>
+        <span class="value"></span>
+    </div>
+</div>
+<script type="module">
+    import {alert} from "https://cdn.jsdelivr.net/gh/Drew-Chase/ChaseUI@bf1436d5538cf5482e8c5d3345dd188e161d58db/js/popup.js";
+
+    $(document).on("loadPopup", async (e, data) => {
+        const id = data.data.id;
+        try {
+            const json = await $.get(`${window.location.hostname === "localhost" ? "http://returns.local" : ""}/api/${id}`);
+            console.log(json);
+
+            // Map the values from the JSON response to the elements in the HTML
+            $('#customer #first-name .value').text(json.customer.first_name);
+            $('#customer #last-name .value').text(json.customer.last_name);
+            $('#customer #address .value').text(json.customer.address);
+
+            $('#employee #emp-first-name .value').text(json.employee.first_name == "" ? "N/A" : json.employee.first_name);
+            $('#employee #emp-last-name .value').text(json.employee.last_name == "" ? "N/A" : json.employee.last_name);
+            $('#employee #loc .value').text(json.employee.location == "" ? "N/A" : json.employee.location);
+
+            $('#card-amount .value').text(`$${json.card.amount.toFixed(2)}`);
+            $('#card-number .value').text(json.card.card);
+            $('#store-address .value').text(json.store.address);
+            $('#store-city .value').text(json.store.city);
+            $("#transaction #return-type .value").text(ReturnType.parse(json.type));
+
+        } catch (e) {
+            console.error(e);
+            alert("Failed to load data");
+        }
+    });
+
+    const ReturnType = {
+        "NoReceiptUnder10": 0,
+        "NoReceiptMRC": 1,
+        "WithReceiptCCD": 2,
+        "WithReceiptMRC": 3,
+
+        parse: function(num) {
+            switch(num) {
+                case 0:
+                    return "No Receipt Under $10";
+                case 1:
+                    return "No Receipt MRC";
+                case 2:
+                    return "With Receipt CCD";
+                case 3:
+                    return "With Receipt MRC";
+                default:
+                    return null;
+            }
+        }
+    };
+</script>
