@@ -12,15 +12,15 @@ create table if not exists gift_cards
 create table if not exists customers
 (
     id            INT AUTO_INCREMENT,
-    first_name    VARCHAR(100),
-    last_name     VARCHAR(100),
-    street        VARCHAR(255),
-    city          VARCHAR(100),
-    state         VARCHAR(2),
-    zip           VARCHAR(5),
+    first_name    text,
+    last_name     text,
+    address        text,
+    city          text,
+    state         text,
+    zip           text,
     date_of_birth DATE,
-    phone         VARCHAR(20),
-    email         VARCHAR(100),
+    phone         text,
+    email         text,
     PRIMARY KEY (id)
 );
 create table if not exists stores
@@ -36,12 +36,8 @@ create table if not exists returns
     date     DATETIME DEFAULT CURRENT_TIMESTAMP,
     type     TINYINT NOT NULL,
     card     INT      DEFAULT NULL,
-    employee INT      DEFAULT NULL,
+    employee INT      DEFAULT -1,
     store    INT     NOT NULL,
     customer INT     NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (card) REFERENCES stores.gift_cards (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (employee) REFERENCES stores.employees (id) ON DELETE SET NULL ON UPDATE CASCADE,
-    FOREIGN KEY (store) REFERENCES stores.stores (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (customer) REFERENCES stores.customers (id) ON DELETE CASCADE ON UPDATE CASCADE
+    PRIMARY KEY (id)
 );
