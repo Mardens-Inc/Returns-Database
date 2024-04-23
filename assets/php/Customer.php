@@ -3,6 +3,7 @@
 namespace ReturnsDatabase;
 
 use Exception;
+use mysqli;
 
 class Customer implements IDatabaseItem
 {
@@ -16,6 +17,7 @@ class Customer implements IDatabaseItem
     public string $zip;
     public string $state;
     public string $date_of_birth;
+    private mysqli $connection;
 
     /**
      * Class constructor.
@@ -43,12 +45,13 @@ class Customer implements IDatabaseItem
         $this->zip = $zip;
         $this->state = $state;
         $this->date_of_birth = $date_of_birth;
+        $this->connection = Connection::connect();
     }
 
 
     public static function from_json(array $row): Customer
     {
-        return new Customer($row['id'], $row['city'], $row['address'], $row['first_name'], $row['last_name'], $row['email'], $row['phone_number'], $row['zip'], $row['state'], $row['date_of_birth']);
+        return new Customer($row['id'] ?? -1, $row['city'], $row['address'], $row['first_name'], $row['last_name'], $row['email'], $row['phone'], $row['zip'], $row['state'], $row['date_of_birth']);
     }
 
     public static function by_id(int $id): ?Customer
@@ -57,10 +60,16 @@ class Customer implements IDatabaseItem
         return $result->num_rows == 0 ? null : self::from_json($result->fetch_assoc());
     }
 
-    public static function search(string $query): array
+    public static function search(string $query, int $limit, int $offset, string $sort_column, bool $ascending): array
     {
-        $result = Connection::connect()->prepare("SELECT * FROM customers WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ? OR zip LIKE ? OR state LIKE ? OR date_of_birth LIKE ? OR concat(first_name, ' ', last_name) LIKE ?");
+        $connection = Connection::connect();
         $query = "%$query%";
+
+        $ascending = $ascending ? 'ASC' : 'DESC';
+        $sort_column = strtolower($sort_column);
+        $sort_column = in_array($sort_column, ['id', 'city', 'address', 'first_name', 'last_name', 'email', 'phone', 'zip', 'state', 'date_of_birth']) ? $sort_column : 'id';
+
+        $result = $connection->prepare("SELECT * FROM customers WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ? OR zip LIKE ? OR state LIKE ? OR date_of_birth LIKE ? OR concat(first_name, ' ', last_name) LIKE ? ORDER BY $sort_column $ascending LIMIT $limit OFFSET $offset");
         $result->bind_param("ssssssss", $query, $query, $query, $query, $query, $query, $query, $query);
         $result->execute();
         $result = $result->get_result();
@@ -71,9 +80,12 @@ class Customer implements IDatabaseItem
         return $customers;
     }
 
-    public static function all(): array
+    public static function range(int $limit, int $offset, string $sort_column, bool $ascending): array
     {
-        $result = Connection::connect()->query("SELECT * FROM customers");
+        $ascending = $ascending ? 'ASC' : 'DESC';
+        $sort_column = strtolower($sort_column);
+        $sort_column = in_array($sort_column, ['id', 'city', 'address', 'first_name', 'last_name', 'email', 'phone', 'zip', 'state', 'date_of_birth']) ? $sort_column : 'id';
+        $result = Connection::connect()->query("SELECT * FROM customers ORDER BY $sort_column $ascending LIMIT $limit OFFSET $offset");
         $customers = [];
         while ($row = $result->fetch_assoc()) {
             $customers[] = self::from_json($row);
@@ -88,17 +100,16 @@ class Customer implements IDatabaseItem
             return;
         }
 
-        $connection = Connection::connect();
-        $stmt = $connection->prepare("INSERT INTO customers (city, street, first_name, last_name, email, phone, zip, state, date_of_birth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $this->connection->prepare("INSERT INTO customers (city, address, first_name, last_name, email, phone, zip, state, date_of_birth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("sssssssss", $this->city, $this->address, $this->first_name, $this->last_name, $this->email, $this->phone, $this->zip, $this->state, $this->date_of_birth);
         $stmt->execute();
 
-        $this->id = $connection->insert_id;
+        $this->id = $this->connection->insert_id;
     }
 
     public function delete(): void
     {
-        Connection::connect()->query("DELETE FROM customers WHERE id = $this->id");
+        $this->connection->query("DELETE FROM customers WHERE id = $this->id");
     }
 
     public function update(): void
@@ -106,7 +117,7 @@ class Customer implements IDatabaseItem
         if ($this->exists() == -1) {
             self::save();
         }
-        $stmt = Connection::connect()->prepare("UPDATE customers SET city = ?, street = ?, first_name = ?, last_name = ?, email = ?, phone = ?, zip = ?, state = ?, date_of_birth = ? WHERE id = ?");
+        $stmt = $this->connection->prepare("UPDATE customers SET city = ?, address = ?, first_name = ?, last_name = ?, email = ?, phone = ?, zip = ?, state = ?, date_of_birth = ? WHERE id = ?");
         $stmt->bind_param("sssssssssi", $this->city, $this->address, $this->first_name, $this->last_name, $this->email, $this->phone, $this->zip, $this->state, $this->date_of_birth, $this->id);
         $stmt->execute();
     }
@@ -114,7 +125,7 @@ class Customer implements IDatabaseItem
     public function exists(): int
     {
         if (self::is_empty()) return -1;
-        $result = Connection::connect()->prepare("SELECT id FROM customers WHERE first_name = ? AND last_name = ? AND date_of_birth = ? LIMIT 1");
+        $result = $this->connection->prepare("SELECT id FROM customers WHERE first_name = ? AND last_name = ? AND date_of_birth = ? LIMIT 1");
         $result->bind_param("sss", $this->first_name, $this->last_name, $this->date_of_birth);
         $result->execute();
         $result = $result->get_result();
@@ -128,7 +139,7 @@ class Customer implements IDatabaseItem
 
     public function is_empty(): bool
     {
-        return $this->id == -1;
+        return $this === self::empty();
     }
 
     public function __toString(): string
@@ -136,8 +147,29 @@ class Customer implements IDatabaseItem
         return "Customer: $this->first_name, $this->last_name, $this->email, $this->phone, $this->zip, $this->state, $this->date_of_birth";
     }
 
-    public function __toArray(): array
+    public function jsonSerialize(): array
     {
         return (array)$this;
+    }
+
+    public function reload_from_database(): Customer
+    {
+        if (self::exists() == -1) return $this;
+        $customer = self::by_id($this->id);
+        $this->city = $customer->city;
+        $this->address = $customer->address;
+        $this->first_name = $customer->first_name;
+        $this->last_name = $customer->last_name;
+        $this->email = $customer->email;
+        $this->phone = $customer->phone;
+        $this->zip = $customer->zip;
+        $this->state = $customer->state;
+        $this->date_of_birth = $customer->date_of_birth;
+        return $this;
+    }
+    public static function count(): int
+    {
+        $result = Connection::connect()->query("SELECT COUNT(*) FROM customers");
+        return $result->fetch_assoc()["COUNT(*)"];
     }
 }
