@@ -34,20 +34,28 @@ interface IDatabaseItem
     public static function by_id(int $id): ?IDatabaseItem;
 
     /**
-     * Search for a given query and return an array of results.
+     * Performs a search based on the given query with optional limit, offset, sort column and sort order.
      *
      * @param string $query The search query.
-     *
-     * @return array An array of search results.
+     * @param int $limit The maximum number of results to return.
+     * @param int $offset The offset from where to start returning results.
+     * @param string $sort_column The column to sort the results by.
+     * @param bool $ascending Whether to sort the results in ascending order.
+     * @return array The search results.
      */
-    public static function search(string $query): array;
+    public static function search(string $query, int $limit, int $offset, string $sort_column, bool $ascending): array;
 
     /**
-     * Get all items from the database.
+     * Get a range of items from the database and return them as an array.
      *
-     * @return array
+     * @param int $limit The maximum number of items to retrieve.
+     * @param int $offset The number of items to skip before starting the range.
+     * @param string $sort_column The column to sort the items by.
+     * @param bool $ascending Whether to sort the items in ascending order.
+     *
+     * @return array An array of items within the specified range.
      */
-    public static function all(): array;
+    public static function range(int $limit, int $offset, string $sort_column, bool $ascending): array;
 
     /**
      * Saves the current instance to the database.
@@ -105,5 +113,19 @@ interface IDatabaseItem
      *
      * @return array
      */
-    public function __toArray(): array;
+    public function jsonSerialize(): array;
+
+    /**
+     * Reloads the current object from the database and returns it as an instance of IDatabaseItem.
+     *
+     * @return IDatabaseItem The reloaded object from the database.
+     */
+    public function reload_from_database(): IDatabaseItem;
+
+    /**
+     * Count the number of records in the database.
+     *
+     * @return int The number of records in the database.
+     */
+    public static function count(): int;
 }
