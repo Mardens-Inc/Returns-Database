@@ -6,6 +6,7 @@ require_once "ReturnType.php";
 require_once "Employee.php";
 require_once "Customer.php";
 require_once "GiftCard.php";
+require_once "Store.php";
 require_once "Connection.php";
 
 use DateTime;
@@ -17,11 +18,11 @@ class ReturnItem implements IDatabaseItem
     public DateTime $date;
     public ReturnType $type;
     public ?GiftCard $card;
-    public Employee $employee;
-    public Customer $customer;
-    public Store $store;
+    public ?Employee $employee;
+    public ?Customer $customer;
+    public ?Store $store;
 
-    public function __construct(int $id, DateTime $date, ReturnType $type, ?GiftCard $card, Employee $employee, Customer $customer, Store $store)
+    public function __construct(int $id, DateTime $date, ReturnType $type, ?GiftCard $card, ?Employee $employee, ?Customer $customer, ?Store $store)
     {
         $this->id = $id;
         $this->date = $date;
@@ -98,25 +99,37 @@ class ReturnItem implements IDatabaseItem
         }
     }
 
-    public static function search(string $query): array
+    public static function search(string $query, int $limit, int $offset, string $sort_column, bool $ascending): array
     {
         $customers = join(',', array_map(function (Customer $customer) {
             return $customer->id;
-        }, Customer::search($query)));
+        }, Customer::search($query, $limit, $offset, $sort_column, $ascending)));
         $employees = join(',', array_map(function (Employee $employee) {
             return $employee->id;
-        }, Employee::search($query)));
+        }, Employee::search($query, $limit, $offset, $sort_column, $ascending)));
         $gift_cards = join(',', array_map(function (GiftCard $gift_card) {
             return $gift_card->id;
-        }, GiftCard::search($query)));
+        }, GiftCard::search($query, $limit, $offset, $sort_column, $ascending)));
         $stores = join(',', array_map(function (Store $store) {
             return $store->id;
-        }, Store::search($query)));
+        }, Store::search($query, $limit, $offset, $sort_column, $ascending)));
 
+        $query = strtolower($query);
+        $ascending = $ascending ? 'ASC' : 'DESC';
+        $sort_column = strtolower($sort_column);
+        $sort_column = in_array($sort_column, ['id', 'date', 'type', 'card', 'employee', 'customer', 'store']) ? $sort_column : 'id';
+        $sql = "select * from returns where date like ?";
+        if (!empty($employees)) $sql .= " or employee in ($employees)";
+        if (!empty($customers)) $sql .= " or customer in ($customers)";
+        if (!empty($gift_cards)) $sql .= " or card in ($gift_cards)";
+        if (!empty($stores)) $sql .= " or store in ($stores)";
+        $sql .= " order by $sort_column $ascending limit $limit offset $offset";
 
-        $result = Connection::connect()->prepare("SELECT * FROM returns WHERE date LIKE ? OR type = ? OR employee IN (?) OR customer IN (?) OR card IN (?) OR store IN (?)");
         $query = "%$query%";
-        $result->bind_param("sissss", $query, $query, $employees, $customers, $gift_cards, $stores);
+
+        $connection = Connection::connect();
+        $result = $connection->prepare($sql);
+        $result->bind_param("s", $query);
         $result->execute();
         $result = $result->get_result();
         $returns = [];
@@ -130,9 +143,12 @@ class ReturnItem implements IDatabaseItem
         return $returns;
     }
 
-    public static function all(): array
+    public static function range(int $limit, int $offset, string $sort_column, bool $ascending): array
     {
-        $result = Connection::connect()->query("SELECT * FROM returns");
+        $ascending = $ascending ? 'ASC' : 'DESC';
+        $sort_column = strtolower($sort_column);
+        $sort_column = in_array($sort_column, ['id', 'date', 'type', 'card', 'employee', 'customer', 'store']) ? $sort_column : 'id';
+        $result = Connection::connect()->query("SELECT * FROM returns ORDER BY $sort_column $ascending LIMIT $limit OFFSET $offset");
         $returns = [];
         while ($row = $result->fetch_assoc()) {
             try {
@@ -210,8 +226,35 @@ class ReturnItem implements IDatabaseItem
         return "Return Item: $this->id, $this->date, $this->type, $this->card, $this->employee, $this->customer, $this->store";
     }
 
-    public function __toArray(): array
+    public function jsonSerialize(): array
     {
-        return (array)$this;
+        return [
+            "id" => $this->id,
+            "date" => $this->date->format("Y-m-d H:i:s"),
+            "type" => $this->type->value,
+            "card" => $this->card,
+            "employee" => $this->employee,
+            "customer" => $this->customer,
+            "store" => $this->store
+        ];
+    }
+
+    public function reload_from_database(): IDatabaseItem
+    {
+        if (self::exists() == -1) return $this;
+        $return_item = self::by_id($this->id);
+        $this->date = $return_item->date;
+        $this->type = $return_item->type;
+        $this->card = $return_item->card;
+        $this->employee = $return_item->employee;
+        $this->customer = $return_item->customer;
+        $this->store = $return_item->store;
+        return $this;
+    }
+
+    public static function count(): int
+    {
+        $result = Connection::connect()->query("SELECT COUNT(*) FROM returns");
+        return $result->fetch_assoc()["COUNT(*)"];
     }
 }
