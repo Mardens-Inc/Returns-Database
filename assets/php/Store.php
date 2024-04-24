@@ -41,10 +41,13 @@ class Store implements IDatabaseItem
         return self::from_json($row);
     }
 
-    public static function search(string $query): array
+    public static function search(string $query, int $limit, int $offset, string $sort_column, bool $ascending): array
     {
         $connection = Connection::connect();
-        $result = $connection->query("SELECT * FROM stores WHERE city LIKE '%$query%' OR address LIKE '%$query%'");
+        $ascending = $ascending ? 'ASC' : 'DESC';
+        $sort_column = strtolower($sort_column);
+        $sort_column = in_array($sort_column, ['id', 'city', 'address']) ? $sort_column : 'id';
+        $result = $connection->query("SELECT * FROM stores WHERE city LIKE '%$query%' OR address LIKE '%$query%' ORDER BY $sort_column $ascending LIMIT $limit OFFSET $offset");
         $stores = [];
         while ($row = $result->fetch_assoc()) {
             $stores[] = self::from_json($row);
@@ -52,10 +55,13 @@ class Store implements IDatabaseItem
         return $stores;
     }
 
-    public static function all(): array
+    public static function range(int $limit, int $offset, string $sort_column, bool $ascending): array
     {
         $connection = Connection::connect();
-        $result = $connection->query("SELECT * FROM stores");
+        $ascending = $ascending ? 'ASC' : 'DESC';
+        $sort_column = strtolower($sort_column);
+        $sort_column = in_array($sort_column, ['id', 'city', 'address']) ? $sort_column : 'id';
+        $result = $connection->query("SELECT * FROM stores ORDER BY $sort_column $ascending LIMIT $limit OFFSET $offset");
         $stores = [];
         while ($row = $result->fetch_assoc()) {
             $stores[] = self::from_json($row);
@@ -92,11 +98,6 @@ class Store implements IDatabaseItem
         return "Store: $this->city, $this->address";
     }
 
-    public function __toArray(): array
-    {
-        return (array)$this;
-    }
-
     public static function empty(): Store
     {
         return new Store(-1, "", "");
@@ -115,5 +116,29 @@ class Store implements IDatabaseItem
     public function is_empty(): bool
     {
         return $this->id == -1;
+    }
+
+    public function jsonSerialize(): array
+    {
+        return [
+            "id" => $this->id,
+            "city" => $this->city,
+            "address" => $this->address
+        ];
+    }
+
+    public function reload_from_database(): IDatabaseItem
+    {
+        $store = self::by_id($this->id);
+        $this->city = $store->city;
+        $this->address = $store->address;
+        return $this;
+    }
+
+    public static function count(): int
+    {
+        $connection = Connection::connect();
+        $result = $connection->query("SELECT COUNT(*) FROM stores");
+        return $result->fetch_row()[0];
     }
 }
