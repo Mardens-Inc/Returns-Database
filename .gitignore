@@ -4,3 +4,4 @@ composer.lock
 logs/
 /node_modules
 /.vite
+/items.json
